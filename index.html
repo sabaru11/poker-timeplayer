@@ -81,23 +81,60 @@ body {
     <div id="timer">30</div>
 </div>
 
-<!-- 🔊 เสียง -->
-<audio id="beep" src="beep.mp3" preload="auto"></audio>
-<!-- <audio id="endSound" src="end.mp3" preload="auto"></audio> -->
-
 <script>
 let maxTime = 11;
 let time = maxTime;
 let stack = 0;
 let interval;
 
+// 🔊 ใช้ระบบเสียงจากโค้ดแรก
+let audioCtx;
 let audioUnlocked = false;
+
+function unlockAudio() {
+    if (audioUnlocked) return;
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    const buffer = audioCtx.createBuffer(1, 1, 22050);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
+
+    audioUnlocked = true;
+}
+
+function beepSound(freq = 1000, duration = 0.1) {
+    if (!audioUnlocked) return;
+
+    if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+    }
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+
+    gain.gain.setValueAtTime(1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioCtx.currentTime + duration
+    );
+
+    osc.stop(audioCtx.currentTime + duration);
+}
 
 const timerDisplay = document.getElementById("timer");
 const stackDisplay = document.getElementById("stack");
 const tapArea = document.getElementById("tapArea");
-const beep = document.getElementById("beep");
-const endSound = document.getElementById("endSound");
 
 function startTimer() {
     clearInterval(interval);
@@ -110,20 +147,19 @@ function startTimer() {
         time--;
         timerDisplay.innerText = time;
 
-        // 🔴 สีแดงเมื่อใกล้หมด
+        // 🔴 สีแดง
         if (time <= 10) {
             timerDisplay.classList.add("danger");
         }
 
-        // 💥 กระพริบตอน 5 วิสุดท้าย
+        // 💥 กระพริบ
         if (time <= 5) {
             timerDisplay.classList.add("flash");
         }
 
-        // 🔊 เสียงนับถอยหลัง
-        if (time <= 5 && time > 0 && audioUnlocked) {
-            const sound = beep.cloneNode(); // 👈 สำคัญมาก
-            beep.play().catch(() => {});
+        // 🔊 เสียง (ใช้แบบใหม่)
+        if (time <= 5 && time > 0) {
+            beepSound(1000, 0.08);
         }
 
         // 🔁 รีรอบ
@@ -143,15 +179,11 @@ function updateStack() {
     stackDisplay.innerText = stack;
 }
 
-// 👆 แตะ = รีทุกอย่าง + ปลดล็อกเสียง
+// 👆 แตะ = รี + unlock เสียง
 tapArea.onclick = () => {
 
     if (!audioUnlocked) {
-        beep.play().then(() => {
-            beep.pause();
-            beep.currentTime = 0;
-            audioUnlocked = true;
-        }).catch(() => {});
+        unlockAudio();
     }
 
     stack = 0;
