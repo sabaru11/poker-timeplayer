@@ -3,9 +3,9 @@
   "short_name": "Timer",
   "start_url": "./index.html",
   "display": "standalone",
-  "orientation": "landscape",
   "background_color": "#0d0d0d",
   "theme_color": "#0d0d0d",
+  "orientation": "landscape",
   "icons": [
     {
       "src": "icon.png",
