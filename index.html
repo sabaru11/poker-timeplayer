@@ -142,6 +142,9 @@ function startTimer() {
             timerDisplay.classList.add("danger");
         }
 
+        // 💥 กระพริบตอน 5 วิสุดท้าย 
+        if (time <= 5) { timerDisplay.classList.add("flash"); }
+
         /* 🔊 ใช้เสียงใหม่ */
         if (time <= 5 && time > 0 && audioUnlocked) {
             playSharp();
@@ -155,8 +158,12 @@ function startTimer() {
     
         stack++;
         updateStack();
-    
-        startTimer();
+
+        // ✅ 🔥 รอ 0.5 วิ ให้เห็นเลข 0 ก่อน
+        setTimeout(() => {
+            startTimer();
+        }, 500);
+        
         return; // 🔥 หยุดไม่ให้ไปต่อ
     }
     }, 1000);
