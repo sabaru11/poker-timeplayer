@@ -59,6 +59,16 @@ body {
   right: 20px;
   top: 20px;
 }
+
+@keyframes flash {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+
+.flash {
+    animation: flash 0.5s infinite;
+}
 </style>
 
 </head>
@@ -141,9 +151,13 @@ function startTimer() {
         if (time <= 10) {
             timerDisplay.classList.add("danger");
         }
-
-        // 💥 กระพริบตอน 5 วิสุดท้าย 
-        if (time <= 5) { timerDisplay.classList.add("flash"); }
+        
+        // 💥 flash
+        if (time <= 5 && time > 0) {
+            timerDisplay.classList.add("flash");
+        } else {
+            timerDisplay.classList.remove("flash");
+        }
 
         /* 🔊 ใช้เสียงใหม่ */
         if (time <= 5 && time > 0 && audioUnlocked) {
@@ -162,7 +176,7 @@ function startTimer() {
         // ✅ 🔥 รอ 0.5 วิ ให้เห็นเลข 0 ก่อน
         setTimeout(() => {
             startTimer();
-        }, 500);
+        }, 1000);
         
         return; // 🔥 หยุดไม่ให้ไปต่อ
     }
