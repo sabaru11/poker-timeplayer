@@ -37,21 +37,11 @@ body {
     font-weight: bold;
     cursor: pointer;
     user-select: none;
-    transition: 0.15s;
+    transition: 0.2s;
 }
 
 .danger {
     color: red;
-}
-
-.flash {
-    animation: flash 0.5s infinite;
-}
-
-@keyframes flash {
-    0% { opacity: 1; }
-    50% { opacity: 0.3; }
-    100% { opacity: 1; }
 }
 
 #timer:active {
@@ -82,12 +72,12 @@ body {
 </div>
 
 <script>
-let maxTime = 11;
+let maxTime = 30;
 let time = maxTime;
 let stack = 0;
 let interval;
 
-// 🔊 ใช้ระบบเสียงจากโค้ดแรก
+/* 🔊 เปลี่ยนเป็น WebAudio */
 let audioCtx;
 let audioUnlocked = false;
 
@@ -105,7 +95,8 @@ function unlockAudio() {
     audioUnlocked = true;
 }
 
-function beepSound(freq = 1000, duration = 0.1) {
+/* 🔺 Sharp แหลม */
+function playSharp() {
     if (!audioUnlocked) return;
 
     if (audioCtx.state === "suspended") {
@@ -115,8 +106,8 @@ function beepSound(freq = 1000, duration = 0.1) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    osc.type = "sine";
-    osc.frequency.value = freq;
+    osc.type = "square";       // 🔥 เสียงแหลมจัด
+    osc.frequency.value = 1400; // 🔥 แหลม
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -126,10 +117,10 @@ function beepSound(freq = 1000, duration = 0.1) {
     gain.gain.setValueAtTime(1, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(
         0.001,
-        audioCtx.currentTime + duration
+        audioCtx.currentTime + 0.05
     );
 
-    osc.stop(audioCtx.currentTime + duration);
+    osc.stop(audioCtx.currentTime + 0.05);
 }
 
 const timerDisplay = document.getElementById("timer");
@@ -141,37 +132,29 @@ function startTimer() {
 
     time = maxTime;
     timerDisplay.innerText = time;
-    timerDisplay.classList.remove("danger", "flash");
+    timerDisplay.classList.remove("danger");
 
     interval = setInterval(() => {
         time--;
         timerDisplay.innerText = time;
 
-        // 🔴 สีแดง
         if (time <= 10) {
             timerDisplay.classList.add("danger");
         }
 
-        // 💥 กระพริบ
-        if (time <= 5) {
-            timerDisplay.classList.add("flash");
+        /* 🔊 ใช้เสียงใหม่ */
+        if (time <= 5 && time > 0 && audioUnlocked) {
+            playSharp();
         }
 
-        // 🔊 เสียง (ใช้แบบใหม่)
-        if (time <= 5 && time > 0) {
-            beepSound(1000, 0.08);
-        }
-
-        // 🔁 รีรอบ
-        if (time < 0) {
+        if (time <= 0) {
             clearInterval(interval);
 
             stack++;
             updateStack();
 
-            setTimeout(startTimer, 800);
+            startTimer();
         }
-
     }, 1000);
 }
 
@@ -179,7 +162,7 @@ function updateStack() {
     stackDisplay.innerText = stack;
 }
 
-// 👆 แตะ = รี + unlock เสียง
+/* 👆 ปลดล็อกเสียง */
 tapArea.onclick = () => {
 
     if (!audioUnlocked) {
