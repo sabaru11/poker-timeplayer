@@ -6,15 +6,12 @@
 
 <link rel="manifest" href="/poker-timeplayer/manifest.json">
 
-<!-- Fullscreen iPhone -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Poker Timer">
 
-<!-- ไอคอน -->
 <link rel="apple-touch-icon" href="/poker-timeplayer/icon.png">
 
-</head>
 <title>Dealer Timer</title>
 
 <style>
@@ -22,114 +19,117 @@ body {
     font-family: Arial;
     background: #0d0d0d;
     color: #fff;
-    text-align: center;
     margin: 0;
-    padding: 0;
-    /* overflow: hidden; */
+    overflow: hidden;
     touch-action: manipulation;
 }
 
-button {
-    font-size: 24px;
-    border-radius: 12px;
-}
-
-
+/* 👇 ทำให้พื้นที่กดใหญ่ทั้งจอ */
 .timer-row {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0; /* เต็มจอ */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #timer {
-    font-size: 400px;
+    font-size: 35vw; /* responsive เต็มจอ */
     font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    transition: 0.2s;
 }
 
-#skipBtn {
-    font-size: 20px;
-    padding: 10px 20px;
-    cursor: pointer;
+/* 🔴 ตอนใกล้หมด */
+.danger {
+    color: red;
+}
+
+/* เอฟเฟกต์ตอนกด */
+#timer:active {
+    transform: scale(0.95);
+    opacity: 0.7;
 }
 
 #stack {
-    /* margin-top: 20px; */
     font-size: 30px;
     color: #00ffcc;
 }
 
 .stack_div {
   position: absolute;
-  left: 65%;
-  top: 50px;
-  transform: translate(-50%, -50%);
+  right: 20px;
+  top: 20px;
 }
-
-.pass {
-  position: absolute;
-  left: 90%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-}
-
 </style>
+
+</head>
 
 <body>
 
-<div class="box">
-    <div class="stack_div" id="stack">0</div>
-    <div class="timer-row">
-        <div id="timer">5</div>
-    </div>
-    <button class="pass" id="skipBtn">⏭ ข้าม</button>
+<div class="stack_div" id="stack">0</div>
+
+<div class="timer-row" id="tapArea">
+    <div id="timer">30</div>
 </div>
 
+<!-- 🔊 เสียง -->
+<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
 <script>
-let maxTime = 3;
+let maxTime = 30;
 let time = maxTime;
 let stack = 0;
 let interval;
 
 const timerDisplay = document.getElementById("timer");
 const stackDisplay = document.getElementById("stack");
-const skipBtn = document.getElementById("skipBtn");
+const tapArea = document.getElementById("tapArea");
+const beep = document.getElementById("beep");
 
 function startTimer() {
     clearInterval(interval);
 
     time = maxTime;
     timerDisplay.innerText = time;
+    timerDisplay.classList.remove("danger");
 
     interval = setInterval(() => {
         time--;
         timerDisplay.innerText = time;
 
+        // 🔴 เปลี่ยนสีตอน ≤ 10
+        if (time <= 10) {
+            timerDisplay.classList.add("danger");
+        }
+
+        // 🔊 เสียงตอน ≤ 5
+        if (time <= 5 && time > 0) {
+            beep.currentTime = 0;
+            beep.play();
+        }
+
         if (time <= 0) {
             clearInterval(interval);
 
-            // ⛔ หมดเวลา → เพิ่ม stack
             stack++;
             updateStack();
 
-            startTimer(); // เริ่มใหม่
+            startTimer();
         }
     }, 1000);
 }
 
 function updateStack() {
-    stackDisplay.innerText = "" + stack;
+    stackDisplay.innerText = stack;
 }
 
-// ⏭ กดข้าม
-skipBtn.onclick = () => {
-    // ลบ stack ถ้ามี
-    if (stack > 0) {
-        stack--;
-    }
-
+// 👆 กดตรงไหนก็ได้ = รีเวลา + รี stack
+tapArea.onclick = () => {
+    stack = 0; /* ✅ รีเป็น 0 ไปเลย */
     updateStack();
-    startTimer(); // รีเวลาใหม่
+    startTimer();
 };
 
 // เริ่มครั้งแรก
