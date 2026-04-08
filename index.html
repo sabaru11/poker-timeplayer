@@ -15,16 +15,13 @@
 <title>Dealer Timer</title>
 
 <style>
-html,body {
+body {
     font-family: Arial;
     background: #0d0d0d;
     color: #fff;
-    height: 100%;
     margin: 0;
     overflow: hidden;
     touch-action: manipulation;
-    overscroll-behavior: none;
-    padding-bottom: env(safe-area-inset-bottom);
 }
 
 .timer-row {
@@ -75,7 +72,7 @@ html,body {
 </div>
 
 <!-- 🔊 เปลี่ยนเป็น mp3 -->
-<audio id="beep" src="/poker-timeplayer/beep.mp3" preload="auto"></audio>
+<audio id="beep" src="beep.mp3" preload="auto"></audio>
 
 <script>
 let maxTime = 30;
@@ -144,8 +141,6 @@ tapArea.onclick = () => {
 };
 
 startTimer();
-
-document.body.addEventListener("touchstart", () => {}, { passive: true });
 </script>
 
 </body>
