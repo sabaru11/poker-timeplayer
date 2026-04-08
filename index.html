@@ -83,7 +83,7 @@ body {
 
 <!-- 🔊 เสียง -->
 <audio id="beep" src="beep.mp3" preload="auto"></audio>
-<audio id="endSound" src="end.mp3" preload="auto"></audio>
+<!-- <audio id="endSound" src="end.mp3" preload="auto"></audio> -->
 
 <script>
 let maxTime = 11;
@@ -115,26 +115,15 @@ function startTimer() {
             timerDisplay.classList.add("danger");
         }
 
-        // 💥 กระพริบตอน 3 วิสุดท้าย
-        if (time <= 3) {
+        // 💥 กระพริบตอน 5 วิสุดท้าย
+        if (time <= 5) {
             timerDisplay.classList.add("flash");
         }
 
         // 🔊 เสียงนับถอยหลัง
         if (time <= 5 && time > 0 && audioUnlocked) {
-            beep.currentTime = 0;
+            const sound = beep.cloneNode(); // 👈 สำคัญมาก
             beep.play().catch(() => {});
-        }
-
-        // 🔊 เสียงหมดเวลา + สั่น
-        if (time === 0) {
-            if (audioUnlocked) {
-                endSound.play().catch(() => {});
-            }
-
-            if (navigator.vibrate) {
-                navigator.vibrate([200, 100, 200]);
-            }
         }
 
         // 🔁 รีรอบ
