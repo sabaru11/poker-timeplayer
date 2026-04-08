@@ -15,13 +15,16 @@
 <title>Dealer Timer</title>
 
 <style>
-body {
+html,body {
     font-family: Arial;
     background: #0d0d0d;
     color: #fff;
+    height: 100%;
     margin: 0;
     overflow: hidden;
     touch-action: manipulation;
+    overscroll-behavior: none;
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
 .timer-row {
@@ -141,6 +144,8 @@ tapArea.onclick = () => {
 };
 
 startTimer();
+
+document.body.addEventListener("touchstart", () => {}, { passive: true });
 </script>
 
 </body>
