@@ -44,13 +44,18 @@ body {
     color: red;
 }
 
-.clicktime:hover {
-    color: rgb(0, 255, 13);
-}
+/* ❌ ลบ hover ทิ้ง */
+/* .clicktime:hover { color: rgb(0, 255, 13); } */
 
+/* ✅ ใช้ตอนกด */
 #timer:active {
     transform: scale(0.95);
     opacity: 0.7;
+}
+
+/* ✅ สีตอนแตะ */
+.active-touch {
+    color: rgb(0, 255, 13);
 }
 
 #stack {
@@ -63,7 +68,6 @@ body {
   right: 20px;
   top: 20px;
 }
-
 
 @keyframes flash {
     0% { opacity: 1; }
@@ -92,7 +96,7 @@ let time = maxTime;
 let stack = 0;
 let interval;
 
-/* 🔊 เปลี่ยนเป็น WebAudio */
+/* 🔊 เสียง */
 let audioCtx;
 let audioUnlocked = false;
 
@@ -110,7 +114,6 @@ function unlockAudio() {
     audioUnlocked = true;
 }
 
-/* 🔺 Sharp แหลม */
 function playSharp() {
     if (!audioUnlocked) return;
 
@@ -121,8 +124,8 @@ function playSharp() {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    osc.type = "square";       // 🔥 เสียงแหลมจัด
-    osc.frequency.value = 1400; // 🔥 แหลม
+    osc.type = "square";
+    osc.frequency.value = 1400;
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -147,44 +150,43 @@ function startTimer() {
 
     time = maxTime;
     timerDisplay.innerText = time;
-    timerDisplay.classList.remove("danger");
+    timerDisplay.classList.remove("danger", "flash");
 
     interval = setInterval(() => {
         time--;
+
+        if (time <= 0) {
+            time = 0;
+            timerDisplay.innerText = time;
+
+            clearInterval(interval);
+
+            stack++;
+            updateStack();
+
+            setTimeout(() => {
+                startTimer();
+            }, 500);
+
+            return;
+        }
+
         timerDisplay.innerText = time;
 
         if (time <= 10) {
             timerDisplay.classList.add("danger");
         }
-        
-        // 💥 flash
-        if (time <= 5 && time > 0) {
+
+        if (time <= 5) {
             timerDisplay.classList.add("flash");
         } else {
             timerDisplay.classList.remove("flash");
         }
 
-        /* 🔊 ใช้เสียงใหม่ */
-        if (time <= 5 && time > 0 && audioUnlocked) {
+        if (time <= 5 && audioUnlocked) {
             playSharp();
         }
 
-    if (time <= 0) {
-        time = 0; // 🔥 กัน -1
-        timerDisplay.innerText = time;
-    
-        clearInterval(interval);
-    
-        stack++;
-        updateStack();
-
-        // ✅ 🔥 รอ 0.5 วิ ให้เห็นเลข 0 ก่อน
-        setTimeout(() => {
-            startTimer();
-        }, 500);
-        
-        return; // 🔥 หยุดไม่ให้ไปต่อ
-    }
     }, 1000);
 }
 
@@ -192,17 +194,28 @@ function updateStack() {
     stackDisplay.innerText = stack;
 }
 
-/* 👆 ปลดล็อกเสียง */
+/* 👆 ปลดล็อก + รี */
 tapArea.onclick = () => {
-
-    if (!audioUnlocked) {
-        unlockAudio();
-    }
+    if (!audioUnlocked) unlockAudio();
 
     stack = 0;
     updateStack();
     startTimer();
 };
+
+/* ✅ มือถือ: กด = เขียว ปล่อย = กลับ */
+tapArea.addEventListener("touchstart", () => {
+    timerDisplay.classList.add("active-touch");
+});
+
+tapArea.addEventListener("touchend", () => {
+    timerDisplay.classList.remove("active-touch");
+});
+
+/* ✅ กันค้าง */
+tapArea.addEventListener("touchcancel", () => {
+    timerDisplay.classList.remove("active-touch");
+});
 
 startTimer();
 </script>
