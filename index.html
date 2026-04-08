@@ -44,6 +44,10 @@ body {
     color: red;
 }
 
+.clicktime:hover {
+    color: rgb(0, 255, 13);
+}
+
 #timer:active {
     transform: scale(0.95);
     opacity: 0.7;
@@ -59,6 +63,7 @@ body {
   right: 20px;
   top: 20px;
 }
+
 
 @keyframes flash {
     0% { opacity: 1; }
@@ -78,7 +83,7 @@ body {
 <div class="stack_div" id="stack">0</div>
 
 <div class="timer-row" id="tapArea">
-    <div id="timer">30</div>
+    <div class="clicktime" id="timer">30</div>
 </div>
 
 <script>
@@ -176,7 +181,7 @@ function startTimer() {
         // ✅ 🔥 รอ 0.5 วิ ให้เห็นเลข 0 ก่อน
         setTimeout(() => {
             startTimer();
-        }, 1000);
+        }, 500);
         
         return; // 🔥 หยุดไม่ให้ไปต่อ
     }
