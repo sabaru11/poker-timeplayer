@@ -1,7 +1,7 @@
 {
   "name": "Poker Timeplayer",
   "short_name": "Timeplayer",
-  "start_url": "./timeout.html",
+  "start_url": "././timeout.html",
   "display": "standalone",
   "background_color": "#0d0d0d",
   "theme_color": "#0d0d0d",
