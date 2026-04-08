@@ -37,11 +37,21 @@ body {
     font-weight: bold;
     cursor: pointer;
     user-select: none;
-    transition: 0.2s;
+    transition: 0.15s;
 }
 
 .danger {
     color: red;
+}
+
+.flash {
+    animation: flash 0.5s infinite;
+}
+
+@keyframes flash {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
 }
 
 #timer:active {
@@ -71,52 +81,72 @@ body {
     <div id="timer">30</div>
 </div>
 
-<!-- 🔊 เปลี่ยนเป็น mp3 -->
+<!-- 🔊 เสียง -->
 <audio id="beep" src="beep.mp3" preload="auto"></audio>
+<audio id="endSound" src="end.mp3" preload="auto"></audio>
 
 <script>
-let maxTime = 30;
+let maxTime = 11;
 let time = maxTime;
 let stack = 0;
 let interval;
 
-/* 🔓 เพิ่มตัวแปรปลดล็อกเสียง */
 let audioUnlocked = false;
 
 const timerDisplay = document.getElementById("timer");
 const stackDisplay = document.getElementById("stack");
 const tapArea = document.getElementById("tapArea");
 const beep = document.getElementById("beep");
+const endSound = document.getElementById("endSound");
 
 function startTimer() {
     clearInterval(interval);
 
     time = maxTime;
     timerDisplay.innerText = time;
-    timerDisplay.classList.remove("danger");
+    timerDisplay.classList.remove("danger", "flash");
 
     interval = setInterval(() => {
         time--;
         timerDisplay.innerText = time;
 
+        // 🔴 สีแดงเมื่อใกล้หมด
         if (time <= 10) {
             timerDisplay.classList.add("danger");
         }
 
-        /* 🔊 เล่นเสียงเฉพาะตอนปลดล็อกแล้ว (iPhone) */
-        if (time <= 5 && time > 0 && audioUnlocked) {
-            beep.currentTime = 0;
-            beep.play();
+        // 💥 กระพริบตอน 3 วิสุดท้าย
+        if (time <= 3) {
+            timerDisplay.classList.add("flash");
         }
 
-        if (time <= 0) {
+        // 🔊 เสียงนับถอยหลัง
+        if (time <= 5 && time > 0 && audioUnlocked) {
+            beep.currentTime = 0;
+            beep.play().catch(() => {});
+        }
+
+        // 🔊 เสียงหมดเวลา + สั่น
+        if (time === 0) {
+            if (audioUnlocked) {
+                endSound.play().catch(() => {});
+            }
+
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200]);
+            }
+        }
+
+        // 🔁 รีรอบ
+        if (time < 0) {
             clearInterval(interval);
 
             stack++;
             updateStack();
 
-            startTimer();
+            setTimeout(startTimer, 800);
         }
+
     }, 1000);
 }
 
@@ -124,7 +154,7 @@ function updateStack() {
     stackDisplay.innerText = stack;
 }
 
-/* 👆 เพิ่มการปลดล็อกเสียงตอนกดครั้งแรก */
+// 👆 แตะ = รีทุกอย่าง + ปลดล็อกเสียง
 tapArea.onclick = () => {
 
     if (!audioUnlocked) {
