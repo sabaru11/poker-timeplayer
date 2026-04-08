@@ -24,29 +24,26 @@ body {
     touch-action: manipulation;
 }
 
-/* 👇 ทำให้พื้นที่กดใหญ่ทั้งจอ */
 .timer-row {
   position: absolute;
-  inset: 0; /* เต็มจอ */
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 #timer {
-    font-size: 35vw; /* responsive เต็มจอ */
+    font-size: 35vw;
     font-weight: bold;
     cursor: pointer;
     user-select: none;
     transition: 0.2s;
 }
 
-/* 🔴 ตอนใกล้หมด */
 .danger {
     color: red;
 }
 
-/* เอฟเฟกต์ตอนกด */
 #timer:active {
     transform: scale(0.95);
     opacity: 0.7;
@@ -74,14 +71,17 @@ body {
     <div id="timer">30</div>
 </div>
 
-<!-- 🔊 เสียง -->
-<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+<!-- 🔊 เปลี่ยนเป็น mp3 -->
+<audio id="beep" src="beep.mp3" preload="auto"></audio>
 
 <script>
 let maxTime = 30;
 let time = maxTime;
 let stack = 0;
 let interval;
+
+/* 🔓 เพิ่มตัวแปรปลดล็อกเสียง */
+let audioUnlocked = false;
 
 const timerDisplay = document.getElementById("timer");
 const stackDisplay = document.getElementById("stack");
@@ -99,13 +99,12 @@ function startTimer() {
         time--;
         timerDisplay.innerText = time;
 
-        // 🔴 เปลี่ยนสีตอน ≤ 10
         if (time <= 10) {
             timerDisplay.classList.add("danger");
         }
 
-        // 🔊 เสียงตอน ≤ 5
-        if (time <= 5 && time > 0) {
+        /* 🔊 เล่นเสียงเฉพาะตอนปลดล็อกแล้ว (iPhone) */
+        if (time <= 5 && time > 0 && audioUnlocked) {
             beep.currentTime = 0;
             beep.play();
         }
@@ -125,14 +124,22 @@ function updateStack() {
     stackDisplay.innerText = stack;
 }
 
-// 👆 กดตรงไหนก็ได้ = รีเวลา + รี stack
+/* 👆 เพิ่มการปลดล็อกเสียงตอนกดครั้งแรก */
 tapArea.onclick = () => {
-    stack = 0; /* ✅ รีเป็น 0 ไปเลย */
+
+    if (!audioUnlocked) {
+        beep.play().then(() => {
+            beep.pause();
+            beep.currentTime = 0;
+            audioUnlocked = true;
+        }).catch(() => {});
+    }
+
+    stack = 0;
     updateStack();
     startTimer();
 };
 
-// เริ่มครั้งแรก
 startTimer();
 </script>
 
