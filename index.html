@@ -147,14 +147,18 @@ function startTimer() {
             playSharp();
         }
 
-        if (time <= 0) {
-            clearInterval(interval);
-
-            stack++;
-            updateStack();
-
-            startTimer();
-        }
+    if (time <= 0) {
+        time = 0; // 🔥 กัน -1
+        timerDisplay.innerText = time;
+    
+        clearInterval(interval);
+    
+        stack++;
+        updateStack();
+    
+        startTimer();
+        return; // 🔥 หยุดไม่ให้ไปต่อ
+    }
     }, 1000);
 }
 
