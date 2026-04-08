@@ -1,15 +1,8 @@
 {
-  "name": "Poker Timeplayer",
-  "short_name": "Timeplayer",
-  "start_url": "./index.html",
+  "name": "Poker Timer",
+  "short_name": "Timer",
+  "start_url": "/poker-timeplayer/",
   "display": "standalone",
   "background_color": "#0d0d0d",
-  "theme_color": "#0d0d0d",
-  "icons": [
-    {
-      "src": "icon.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    }
-  ]
+  "theme_color": "#0d0d0d"
 }
