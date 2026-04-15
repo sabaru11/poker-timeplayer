@@ -44,16 +44,11 @@ body {
     color: red;
 }
 
-/* ❌ ลบ hover ทิ้ง */
-/* .clicktime:hover { color: rgb(0, 255, 13); } */
-
-/* ✅ ใช้ตอนกด */
 #timer:active {
     transform: scale(0.95);
     opacity: 0.7;
 }
 
-/* ✅ สีตอนแตะ */
 .active-touch {
     color: rgb(0, 255, 13);
 }
@@ -91,7 +86,7 @@ body {
 </div>
 
 <script>
-let maxTime = 6;
+let maxTime = 30;
 let time = maxTime;
 let stack = 0;
 let interval;
@@ -141,6 +136,27 @@ function playSharp() {
     osc.stop(audioCtx.currentTime + 0.05);
 }
 
+/* 🔥 เสียงตอนหมดเวลา */
+function playEnd() {
+    if (!audioUnlocked) return;
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "square";
+    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.2);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    gain.gain.setValueAtTime(1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.2);
+}
+
 const timerDisplay = document.getElementById("timer");
 const stackDisplay = document.getElementById("stack");
 const tapArea = document.getElementById("tapArea");
@@ -156,10 +172,12 @@ function startTimer() {
         time--;
 
         if (time <= 0) {
-            time = 0;
-            timerDisplay.innerText = time;
-
             clearInterval(interval);
+
+            // 🔊 เสียงหมดเวลา
+            if (audioUnlocked) {
+                playEnd();
+            }
 
             stack++;
             updateStack();
@@ -212,7 +230,6 @@ tapArea.addEventListener("touchend", () => {
     timerDisplay.classList.remove("active-touch");
 });
 
-/* ✅ กันค้าง */
 tapArea.addEventListener("touchcancel", () => {
     timerDisplay.classList.remove("active-touch");
 });
