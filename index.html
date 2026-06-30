@@ -38,6 +38,8 @@ body {
     cursor: pointer;
     user-select: none;
     transition: 0.2s;
+    position: relative;
+    display: inline-block;
 }
 
 .danger {
@@ -73,6 +75,17 @@ body {
 .flash {
     animation: flash 1s infinite ease-in-out;
 }
+
+/* เพิ่มเฉพาะส่วนมิลลิวินาที มุมขวาบนของตัวเลข */
+#ms {
+    position: absolute;
+    bottom: 8%;
+    right: -8%;
+    font-size: 6vw;
+    font-weight: normal;
+    opacity: 0.6;
+    color: inherit;
+}
 </style>
 
 </head>
@@ -82,14 +95,16 @@ body {
 <div class="stack_div" id="stack">0</div>
 
 <div class="timer-row" id="tapArea">
-    <div class="clicktime" id="timer">30</div>
+    <div class="clicktime" id="timer">30<span id="ms">00</span></div>
 </div>
 
 <script>
 let maxTime = 25;
-let time = maxTime;
 let stack = 0;
-let interval;
+let rafId;
+let endTime = 0;
+let startTime = 0;
+let lastWholeSecond = null;
 
 /* 🔊 เสียง */
 let audioCtx;
@@ -158,54 +173,72 @@ function playEnd() {
 }
 
 const timerDisplay = document.getElementById("timer");
+const msDisplay = document.getElementById("ms");
 const stackDisplay = document.getElementById("stack");
 const tapArea = document.getElementById("tapArea");
 
 function startTimer() {
-    clearInterval(interval);
+    cancelAnimationFrame(rafId);
 
-    time = maxTime;
-    timerDisplay.innerText = time;
+    startTime = Date.now();
+    endTime = startTime + maxTime * 1000;
+    lastWholeSecond = null;
+
     timerDisplay.classList.remove("danger", "flash");
 
-    interval = setInterval(() => {
-        time--;
+    tick();
+}
 
-        if (time <= 0) {
-            clearInterval(interval);
+function tick() {
+    const remaining = endTime - Date.now();
 
-            // 🔊 เสียงหมดเวลา
-            if (audioUnlocked) {
-                playEnd();
-            }
+    if (remaining <= 0) {
+        // หมดเวลา
+        renderTime(0, 0);
 
-            stack++;
-            updateStack();
-
-            setTimeout(() => {
-                startTimer();
-            }, 300);
-
-            return;
+        if (audioUnlocked) {
+            playEnd();
         }
 
-        timerDisplay.innerText = time;
+        stack++;
+        updateStack();
 
-        if (time <= 10) {
+        setTimeout(() => {
+            startTimer();
+        }, 300);
+
+        return;
+    }
+
+    const wholeSecond = Math.ceil(remaining / 1000);
+    const elapsed = Date.now() - startTime;
+    const ms = elapsed % 1000;
+
+    renderTime(wholeSecond, ms);
+
+    if (wholeSecond !== lastWholeSecond) {
+        lastWholeSecond = wholeSecond;
+
+        if (wholeSecond <= 10) {
             timerDisplay.classList.add("danger");
         }
 
-        if (time <= 5) {
+        if (wholeSecond <= 5) {
             timerDisplay.classList.add("flash");
+            if (audioUnlocked) {
+                playSharp();
+            }
         } else {
             timerDisplay.classList.remove("flash");
         }
+    }
 
-        if (time <= 5 && audioUnlocked) {
-            playSharp();
-        }
+    rafId = requestAnimationFrame(tick);
+}
 
-    }, 1000);
+function renderTime(sec, ms) {
+    timerDisplay.childNodes[0].nodeValue = sec;
+    msDisplay.innerText = String(Math.floor(ms / 10)).padStart(2, "0");
 }
 
 function updateStack() {
