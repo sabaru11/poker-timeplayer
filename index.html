@@ -132,12 +132,16 @@ let startTime = 0;
 let lastWholeSecond = null;
 
 /* ⏸ หยุดเวลา (หน่วยมิลลิวินาที: 1000 = 1 วินาที) */
-const HOLD_MS = 1000;
+const HOLD_MS = 2000;
 let isPaused = false;
 let pausedRemaining = 0;
 let holdTimeout = null;
 let longPressDone = false;
 let restartTimeout = null;
+
+/* 👆 เคาะ 2 ครั้งเพื่อรีเซ็ต (หน่วยมิลลิวินาที) */
+const DOUBLE_TAP_MS = 400;
+let lastTapTime = 0;
 
 /* 🔊 เสียง */
 let audioCtx;
@@ -320,7 +324,7 @@ function toggleHold() {
     }
 }
 
-/* 👆 จัดการการกด: แตะสั้น = รีเซ็ต, กดค้าง = หยุด/เล่นต่อ */
+/* 👆 จัดการการกด: เคาะ 2 ครั้ง = รีเซ็ต, กดค้าง = หยุด/เล่นต่อ */
 function handleDown() {
     timerDisplay.classList.add("active-touch");
     timerDisplay.classList.remove("done");
@@ -340,11 +344,21 @@ function handleUp() {
 
     if (!audioUnlocked) unlockAudio();
 
-    // ถ้าไม่ได้กดค้างจนครบเวลา ถือว่าเป็นการแตะสั้น → รีเซ็ต
-    if (!longPressDone) {
-        stack = 0;
-        updateStack();
-        startTimer();
+    if (longPressDone) {
+        // เพิ่งกดค้างหยุด/เล่นต่อ ไม่นับเป็นการเคาะ
+        lastTapTime = 0;
+    } else {
+        const now = Date.now();
+        if (now - lastTapTime <= DOUBLE_TAP_MS) {
+            // เคาะครั้งที่ 2 ทันเวลา → รีเซ็ต
+            stack = 0;
+            updateStack();
+            startTimer();
+            lastTapTime = 0;
+        } else {
+            // เคาะครั้งแรก → จำเวลาไว้ ยังไม่ทำอะไร
+            lastTapTime = now;
+        }
     }
     longPressDone = false;
 }
