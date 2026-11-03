@@ -89,14 +89,9 @@ body {
     color: inherit;
 }
 
-/* สถานะหยุดเวลา */
+/* สีเหลืองเมื่อหยุดเวลา */
 .paused {
     color: #ffcc00 !important;
-}
-
-/* สถานะกำลังกดเพื่อเล่นต่อ */
-.resuming {
-    color: rgb(0, 255, 13) !important;
 }
 </style>
 
@@ -210,6 +205,7 @@ const tapArea = document.getElementById("tapArea");
 
 /* เริ่มเวลา */
 function startTimer() {
+
     cancelAnimationFrame(rafId);
 
     isPaused = false;
@@ -217,7 +213,6 @@ function startTimer() {
 
     timerDisplay.classList.remove(
         "paused",
-        "resuming",
         "danger",
         "flash"
     );
@@ -288,6 +283,7 @@ function tick() {
 
 /* แสดงเวลา */
 function renderTime(sec, ms) {
+
     timerDisplay.childNodes[0].nodeValue = sec;
 
     msDisplay.innerText = String(
@@ -311,7 +307,10 @@ function pauseTimer() {
 
     cancelAnimationFrame(rafId);
 
-    timerDisplay.classList.remove("danger", "flash");
+    timerDisplay.classList.remove(
+        "danger",
+        "flash"
+    );
 
     timerDisplay.classList.add("paused");
 
@@ -337,10 +336,7 @@ function resumeTimer() {
 
     endTime = Date.now() + pausedRemaining;
 
-    timerDisplay.classList.remove(
-        "paused",
-        "resuming"
-    );
+    timerDisplay.classList.remove("paused");
 
     lastWholeSecond = null;
 
@@ -378,16 +374,10 @@ function holdStart(e) {
         holdTriggered = true;
 
         if (isPaused) {
-
-            // กำลังจะเล่นต่อ
-            timerDisplay.classList.remove("paused");
-            timerDisplay.classList.add("resuming");
-
+            // เตรียมเล่นเวลาต่อ ไม่เปลี่ยนสีเหลือง
         } else {
-
             // หยุดเวลา
             pauseTimer();
-
         }
 
     }, HOLD_DURATION);
@@ -404,18 +394,13 @@ function holdEnd(cancelled = false) {
 
     timerDisplay.classList.remove("active-touch");
 
-    if (cancelled) {
-        timerDisplay.classList.remove("resuming");
-        return;
-    }
+    if (cancelled) return;
 
     if (holdTriggered) {
 
         if (isPaused) {
             resumeTimer();
         }
-
-        timerDisplay.classList.remove("resuming");
 
     } else {
 
@@ -427,7 +412,6 @@ function holdEnd(cancelled = false) {
 
         timerDisplay.classList.remove(
             "paused",
-            "resuming",
             "danger",
             "flash"
         );
