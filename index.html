@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -25,11 +26,11 @@ body {
 }
 
 .timer-row {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #timer {
@@ -37,6 +38,7 @@ body {
     font-weight: bold;
     cursor: pointer;
     user-select: none;
+    -webkit-user-select: none;
     transition: 0.2s;
     position: relative;
     display: inline-block;
@@ -61,9 +63,9 @@ body {
 }
 
 .stack_div {
-  position: absolute;
-  right: 20px;
-  top: 20px;
+    position: absolute;
+    right: 20px;
+    top: 20px;
 }
 
 @keyframes flash {
@@ -76,7 +78,7 @@ body {
     animation: flash 1s infinite ease-in-out;
 }
 
-/* เพิ่มเฉพาะส่วนมิลลิวินาที มุมขวาบนของตัวเลข */
+/* มิลลิวินาที */
 #ms {
     position: absolute;
     bottom: 8%;
@@ -85,6 +87,16 @@ body {
     font-weight: normal;
     opacity: 0.6;
     color: inherit;
+}
+
+/* สถานะหยุดเวลา */
+.paused {
+    color: #ffcc00 !important;
+}
+
+/* สถานะกำลังกดเพื่อเล่นต่อ */
+.resuming {
+    color: rgb(0, 255, 13) !important;
 }
 </style>
 
@@ -99,6 +111,7 @@ body {
 </div>
 
 <script>
+
 let maxTime = 25;
 let stack = 0;
 let rafId;
@@ -106,7 +119,16 @@ let endTime = 0;
 let startTime = 0;
 let lastWholeSecond = null;
 
-/* 🔊 เสียง */
+/* ระบบหยุดเวลา */
+let isPaused = false;
+let isHolding = false;
+let holdTimer = null;
+let holdTriggered = false;
+let pausedRemaining = 0;
+
+const HOLD_DURATION = 300;
+
+/* เสียง */
 let audioCtx;
 let audioUnlocked = false;
 
@@ -117,6 +139,7 @@ function unlockAudio() {
 
     const buffer = audioCtx.createBuffer(1, 1, 22050);
     const source = audioCtx.createBufferSource();
+
     source.buffer = buffer;
     source.connect(audioCtx.destination);
     source.start(0);
@@ -151,7 +174,7 @@ function playSharp() {
     osc.stop(audioCtx.currentTime + 0.05);
 }
 
-/* 🔥 เสียงตอนหมดเวลา */
+/* เสียงตอนหมดเวลา */
 function playEnd() {
     if (!audioUnlocked) return;
 
@@ -159,41 +182,63 @@ function playEnd() {
     const gain = audioCtx.createGain();
 
     osc.type = "square";
+
     osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.2);
+    osc.frequency.exponentialRampToValueAtTime(
+        200,
+        audioCtx.currentTime + 0.2
+    );
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
 
     gain.gain.setValueAtTime(1, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioCtx.currentTime + 0.2
+    );
 
     osc.start();
     osc.stop(audioCtx.currentTime + 0.2);
 }
 
+/* Elements */
 const timerDisplay = document.getElementById("timer");
 const msDisplay = document.getElementById("ms");
 const stackDisplay = document.getElementById("stack");
 const tapArea = document.getElementById("tapArea");
 
+/* เริ่มเวลา */
 function startTimer() {
     cancelAnimationFrame(rafId);
 
+    isPaused = false;
+    pausedRemaining = 0;
+
+    timerDisplay.classList.remove(
+        "paused",
+        "resuming",
+        "danger",
+        "flash"
+    );
+
     startTime = Date.now();
     endTime = startTime + maxTime * 1000;
-    lastWholeSecond = null;
 
-    timerDisplay.classList.remove("danger", "flash");
+    lastWholeSecond = null;
 
     tick();
 }
 
+/* ระบบนับถอยหลัง */
 function tick() {
+
+    if (isPaused) return;
+
     const remaining = endTime - Date.now();
 
     if (remaining <= 0) {
-        // หมดเวลา
+
         renderTime(0, 0);
 
         if (audioUnlocked) {
@@ -211,12 +256,14 @@ function tick() {
     }
 
     const wholeSecond = Math.ceil(remaining / 1000);
+
     const elapsed = Date.now() - startTime;
     const ms = elapsed % 1000;
 
     renderTime(wholeSecond, ms);
 
     if (wholeSecond !== lastWholeSecond) {
+
         lastWholeSecond = wholeSecond;
 
         if (wholeSecond <= 10) {
@@ -224,10 +271,13 @@ function tick() {
         }
 
         if (wholeSecond <= 5) {
+
             timerDisplay.classList.add("flash");
+
             if (audioUnlocked) {
                 playSharp();
             }
+
         } else {
             timerDisplay.classList.remove("flash");
         }
@@ -236,38 +286,180 @@ function tick() {
     rafId = requestAnimationFrame(tick);
 }
 
+/* แสดงเวลา */
 function renderTime(sec, ms) {
     timerDisplay.childNodes[0].nodeValue = sec;
-    msDisplay.innerText = String(Math.floor(ms / 10)).padStart(2, "0");
+
+    msDisplay.innerText = String(
+        Math.floor(ms / 10)
+    ).padStart(2, "0");
 }
 
+/* อัปเดต Stack */
 function updateStack() {
     stackDisplay.innerText = stack;
 }
 
-/* 👆 ปลดล็อก + รี */
-tapArea.onclick = () => {
-    if (!audioUnlocked) unlockAudio();
+/* หยุดเวลา */
+function pauseTimer() {
 
-    stack = 0;
-    updateStack();
-    startTimer();
-};
+    if (isPaused) return;
 
-/* ✅ มือถือ: กด = เขียว ปล่อย = กลับ */
-tapArea.addEventListener("touchstart", () => {
+    isPaused = true;
+
+    pausedRemaining = Math.max(0, endTime - Date.now());
+
+    cancelAnimationFrame(rafId);
+
+    timerDisplay.classList.remove("danger", "flash");
+
+    timerDisplay.classList.add("paused");
+
+    const sec = Math.ceil(pausedRemaining / 1000);
+
+    const ms = (
+        1000 - (pausedRemaining % 1000)
+    ) % 1000;
+
+    renderTime(sec, ms);
+}
+
+/* เล่นเวลาต่อ */
+function resumeTimer() {
+
+    if (!isPaused) return;
+
+    isPaused = false;
+
+    startTime = Date.now() - (
+        maxTime * 1000 - pausedRemaining
+    );
+
+    endTime = Date.now() + pausedRemaining;
+
+    timerDisplay.classList.remove(
+        "paused",
+        "resuming"
+    );
+
+    lastWholeSecond = null;
+
+    tick();
+}
+
+/* เริ่มกด */
+function holdStart(e) {
+
+    if (e.type === "mousedown" && e.button !== 0) {
+        return;
+    }
+
+    if (e.cancelable) {
+        e.preventDefault();
+    }
+
+    if (!audioUnlocked) {
+        unlockAudio();
+    }
+
+    if (isHolding) return;
+
+    isHolding = true;
+    holdTriggered = false;
+
+    try {
+        tapArea.setPointerCapture(e.pointerId);
+    } catch (err) {}
+
     timerDisplay.classList.add("active-touch");
-});
 
-tapArea.addEventListener("touchend", () => {
+    holdTimer = setTimeout(() => {
+
+        holdTriggered = true;
+
+        if (isPaused) {
+
+            // กำลังจะเล่นต่อ
+            timerDisplay.classList.remove("paused");
+            timerDisplay.classList.add("resuming");
+
+        } else {
+
+            // หยุดเวลา
+            pauseTimer();
+
+        }
+
+    }, HOLD_DURATION);
+}
+
+/* ปล่อยนิ้ว */
+function holdEnd(cancelled = false) {
+
+    if (!isHolding) return;
+
+    isHolding = false;
+
+    clearTimeout(holdTimer);
+
     timerDisplay.classList.remove("active-touch");
+
+    if (cancelled) {
+        timerDisplay.classList.remove("resuming");
+        return;
+    }
+
+    if (holdTriggered) {
+
+        if (isPaused) {
+            resumeTimer();
+        }
+
+        timerDisplay.classList.remove("resuming");
+
+    } else {
+
+        // แตะสั้น = รีเซ็ตเวลา
+        stack = 0;
+        updateStack();
+
+        isPaused = false;
+
+        timerDisplay.classList.remove(
+            "paused",
+            "resuming",
+            "danger",
+            "flash"
+        );
+
+        startTimer();
+    }
+}
+
+/* รองรับมือถือและคอมพิวเตอร์ */
+tapArea.addEventListener("pointerdown", holdStart);
+
+tapArea.addEventListener("pointerup", () => {
+    holdEnd(false);
 });
 
-tapArea.addEventListener("touchcancel", () => {
-    timerDisplay.classList.remove("active-touch");
+tapArea.addEventListener("pointercancel", () => {
+    holdEnd(true);
 });
 
+/* ป้องกันสถานะค้างเมื่อหน้าต่างเสียโฟกัส */
+window.addEventListener("blur", () => {
+    holdEnd(true);
+});
+
+/* ป้องกันเมนูคลิกขวา */
+tapArea.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+});
+
+/* เริ่มต้น */
 startTimer();
+
 </script>
 
 </body>
