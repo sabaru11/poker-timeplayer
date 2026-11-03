@@ -12,7 +12,7 @@
 
 <link rel="apple-touch-icon" href="/poker-timeplayer/icon.png">
 
-<title>Player playtime</title>
+<title>Player playtime Fix</title>
 
 <style>
 body {
@@ -21,7 +21,7 @@ body {
     color: #fff;
     margin: 0;
     overflow: hidden;
-    touch-action: manipulation;
+    touch-action: none;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
@@ -309,21 +309,8 @@ function toggleHold() {
     }
 }
 
-/* 👆 แตะสั้น = รีเซ็ต (ถ้าเพิ่งกดค้างจะไม่รีเซ็ต) */
-tapArea.onclick = () => {
-    if (longPressDone) {
-        longPressDone = false;
-        return;
-    }
-    if (!audioUnlocked) unlockAudio();
-
-    stack = 0;
-    updateStack();
-    startTimer();
-};
-
-/* ✅ มือถือ: กด = เขียว, กดค้าง 2 วิ = สลับ หยุด/เล่นต่อ */
-tapArea.addEventListener("touchstart", () => {
+/* 👆 จัดการการกด: แตะสั้น = รีเซ็ต, กดค้าง 2 วิ = หยุด/เล่นต่อ */
+function handleDown() {
     timerDisplay.classList.add("active-touch");
     longPressDone = false;
 
@@ -331,28 +318,48 @@ tapArea.addEventListener("touchstart", () => {
     holdTimeout = setTimeout(() => {
         longPressDone = true;
         toggleHold();
-        if (navigator.vibrate) navigator.vibrate(50);
     }, HOLD_MS);
-}, { passive: true });
+}
 
-tapArea.addEventListener("touchend", (e) => {
+function handleUp() {
     clearTimeout(holdTimeout);
     timerDisplay.classList.remove("active-touch");
 
     if (!audioUnlocked) unlockAudio();
 
-    if (longPressDone) {
-        e.preventDefault();   // กัน click รีเซ็ตเวลาหลังปล่อยนิ้ว
-        longPressDone = false;
+    // ถ้าไม่ได้กดค้างจนครบ 2 วิ ถือว่าเป็นการแตะสั้น → รีเซ็ต
+    if (!longPressDone) {
+        stack = 0;
+        updateStack();
+        startTimer();
     }
-}, { passive: false });
+    longPressDone = false;
+}
 
-tapArea.addEventListener("touchcancel", () => {
+function handleCancel() {
     clearTimeout(holdTimeout);
     timerDisplay.classList.remove("active-touch");
-});
+    longPressDone = false;
+}
 
-/* กันเมนู long-press ของ iOS */
+/* มือถือ */
+tapArea.addEventListener("touchstart", (e) => {
+    e.preventDefault();          // กัน iOS เด้งเมนู/เลือกข้อความ/ยกเลิก touch
+    handleDown();
+}, { passive: false });
+
+tapArea.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    handleUp();
+}, { passive: false });
+
+tapArea.addEventListener("touchcancel", handleCancel);
+
+/* เมาส์ (เผื่อทดสอบบนคอม) */
+tapArea.addEventListener("mousedown", handleDown);
+tapArea.addEventListener("mouseup", handleUp);
+tapArea.addEventListener("mouseleave", handleCancel);
+
 tapArea.addEventListener("contextmenu", (e) => e.preventDefault());
 
 startTimer();
