@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -22,16 +21,22 @@ body {
     color: #fff;
     margin: 0;
     overflow: hidden;
-    touch-action: none;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .timer-row {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #timer {
@@ -50,11 +55,17 @@ body {
     color: red;
 }
 
+/* เวลาหยุด = เหลือง */
+.paused {
+    color: #ffd400;
+}
+
 #timer:active {
     transform: scale(0.95);
     opacity: 0.7;
 }
 
+/* ต้องอยู่หลัง .paused เพื่อให้สีเขียวทับสีเหลืองตอนกดค้าง */
 .active-touch {
     color: rgb(0, 255, 13);
 }
@@ -65,9 +76,9 @@ body {
 }
 
 .stack_div {
-    position: absolute;
-    right: 20px;
-    top: 20px;
+  position: absolute;
+  right: 20px;
+  top: 20px;
 }
 
 @keyframes flash {
@@ -80,7 +91,6 @@ body {
     animation: flash 1s infinite ease-in-out;
 }
 
-/* มิลลิวินาที */
 #ms {
     position: absolute;
     bottom: 8%;
@@ -89,11 +99,6 @@ body {
     font-weight: normal;
     opacity: 0.6;
     color: inherit;
-}
-
-/* หยุดเวลา = สีเหลือง */
-.paused {
-    color: #ffcc00 !important;
 }
 </style>
 
@@ -108,65 +113,40 @@ body {
 </div>
 
 <script>
-
-/* =========================
-   ตัวแปรหลัก
-========================= */
-
 let maxTime = 25;
 let stack = 0;
-
-let rafId = null;
+let rafId;
 let endTime = 0;
 let startTime = 0;
 let lastWholeSecond = null;
 
+/* ⏸ หยุดเวลา */
+const HOLD_MS = 2000;
 let isPaused = false;
-let isHolding = false;
-let holdTimer = null;
-let holdTriggered = false;
 let pausedRemaining = 0;
+let holdTimeout = null;
+let longPressDone = false;
+let restartTimeout = null;
 
-let holdSource = null;
-let holdTouchId = null;
-
-const HOLD_DURATION = 300;
-
-/* =========================
-   เสียง
-========================= */
-
+/* 🔊 เสียง */
 let audioCtx;
 let audioUnlocked = false;
 
 function unlockAudio() {
-
     if (audioUnlocked) return;
 
-    try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        audioCtx = new (
-            window.AudioContext ||
-            window.webkitAudioContext
-        )();
+    const buffer = audioCtx.createBuffer(1, 1, 22050);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
 
-        const buffer = audioCtx.createBuffer(1, 1, 22050);
-
-        const source = audioCtx.createBufferSource();
-
-        source.buffer = buffer;
-        source.connect(audioCtx.destination);
-        source.start(0);
-
-        audioUnlocked = true;
-
-    } catch (e) {
-        console.log("Audio unavailable");
-    }
+    audioUnlocked = true;
 }
 
 function playSharp() {
-
     if (!audioUnlocked) return;
 
     if (audioCtx.state === "suspended") {
@@ -185,7 +165,6 @@ function playSharp() {
     osc.start();
 
     gain.gain.setValueAtTime(1, audioCtx.currentTime);
-
     gain.gain.exponentialRampToValueAtTime(
         0.001,
         audioCtx.currentTime + 0.05
@@ -194,88 +173,52 @@ function playSharp() {
     osc.stop(audioCtx.currentTime + 0.05);
 }
 
-/* เสียงหมดเวลา */
+/* 🔥 เสียงตอนหมดเวลา */
 function playEnd() {
-
     if (!audioUnlocked) return;
 
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
     osc.type = "square";
-
-    osc.frequency.setValueAtTime(
-        800,
-        audioCtx.currentTime
-    );
-
-    osc.frequency.exponentialRampToValueAtTime(
-        200,
-        audioCtx.currentTime + 0.2
-    );
+    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.2);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
 
     gain.gain.setValueAtTime(1, audioCtx.currentTime);
-
-    gain.gain.exponentialRampToValueAtTime(
-        0.001,
-        audioCtx.currentTime + 0.2
-    );
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
 
     osc.start();
     osc.stop(audioCtx.currentTime + 0.2);
 }
-
-/* =========================
-   Elements
-========================= */
 
 const timerDisplay = document.getElementById("timer");
 const msDisplay = document.getElementById("ms");
 const stackDisplay = document.getElementById("stack");
 const tapArea = document.getElementById("tapArea");
 
-/* =========================
-   เริ่มเวลา
-========================= */
-
 function startTimer() {
-
     cancelAnimationFrame(rafId);
-    rafId = null;
+    clearTimeout(restartTimeout);
+    restartTimeout = null;
 
     isPaused = false;
-    pausedRemaining = 0;
-
-    timerDisplay.classList.remove(
-        "paused",
-        "danger",
-        "flash"
-    );
-
     startTime = Date.now();
-
     endTime = startTime + maxTime * 1000;
-
     lastWholeSecond = null;
+
+    timerDisplay.classList.remove("danger", "flash", "paused");
 
     tick();
 }
 
-/* =========================
-   นับถอยหลัง
-========================= */
-
 function tick() {
-
-    if (isPaused) return;
-
     const remaining = endTime - Date.now();
 
     if (remaining <= 0) {
-
+        // หมดเวลา
         renderTime(0, 0);
 
         if (audioUnlocked) {
@@ -285,29 +228,21 @@ function tick() {
         stack++;
         updateStack();
 
-        rafId = null;
-
-        setTimeout(() => {
-
-            if (!isPaused) {
-                startTimer();
-            }
-
+        restartTimeout = setTimeout(() => {
+            restartTimeout = null;
+            startTimer();
         }, 300);
 
         return;
     }
 
     const wholeSecond = Math.ceil(remaining / 1000);
-
     const elapsed = Date.now() - startTime;
-
     const ms = elapsed % 1000;
 
     renderTime(wholeSecond, ms);
 
     if (wholeSecond !== lastWholeSecond) {
-
         lastWholeSecond = wholeSecond;
 
         if (wholeSecond <= 10) {
@@ -315,294 +250,112 @@ function tick() {
         }
 
         if (wholeSecond <= 5) {
-
             timerDisplay.classList.add("flash");
-
             if (audioUnlocked) {
                 playSharp();
             }
-
         } else {
-
             timerDisplay.classList.remove("flash");
-
         }
     }
 
     rafId = requestAnimationFrame(tick);
 }
 
-/* =========================
-   แสดงเวลา
-========================= */
-
 function renderTime(sec, ms) {
-
     timerDisplay.childNodes[0].nodeValue = sec;
-
-    msDisplay.innerText = String(
-        Math.floor(ms / 10)
-    ).padStart(2, "0");
+    msDisplay.innerText = String(Math.floor(ms / 10)).padStart(2, "0");
 }
 
 function updateStack() {
     stackDisplay.innerText = stack;
 }
 
-/* =========================
-   หยุดเวลา
-========================= */
-
+/* ⏸ หยุด / ▶ เล่นต่อ */
 function pauseTimer() {
+    cancelAnimationFrame(rafId);
 
-    if (isPaused) return;
+    if (restartTimeout) {
+        // กดตอนหมดเวลาพอดี (รอรีสตาร์ท) → หยุดที่เวลาเต็ม
+        clearTimeout(restartTimeout);
+        restartTimeout = null;
+        pausedRemaining = maxTime * 1000;
+        renderTime(maxTime, 0);
+    } else {
+        pausedRemaining = Math.max(0, endTime - Date.now());
+    }
 
     isPaused = true;
-
-    pausedRemaining = Math.max(
-        0,
-        endTime - Date.now()
-    );
-
-    cancelAnimationFrame(rafId);
-    rafId = null;
-
-    timerDisplay.classList.remove(
-        "danger",
-        "flash"
-    );
-
+    timerDisplay.classList.remove("danger", "flash");
     timerDisplay.classList.add("paused");
-
-    const sec = Math.ceil(
-        pausedRemaining / 1000
-    );
-
-    const ms = (
-        1000 - (pausedRemaining % 1000)
-    ) % 1000;
-
-    renderTime(sec, ms);
 }
 
-/* =========================
-   เล่นเวลาต่อ
-========================= */
-
 function resumeTimer() {
-
-    if (!isPaused) return;
-
     isPaused = false;
-
-    startTime = Date.now() - (
-        maxTime * 1000 - pausedRemaining
-    );
-
     endTime = Date.now() + pausedRemaining;
+    startTime = endTime - maxTime * 1000;
+    lastWholeSecond = null;
 
     timerDisplay.classList.remove("paused");
-
-    lastWholeSecond = null;
 
     tick();
 }
 
-/* =========================
-   เริ่มกด
-========================= */
-
-function beginHold(source, touchId = null) {
-
-    if (isHolding) return;
-
-    if (!audioUnlocked) {
-        unlockAudio();
+function toggleHold() {
+    if (isPaused) {
+        resumeTimer();
+    } else {
+        pauseTimer();
     }
-
-    isHolding = true;
-    holdTriggered = false;
-
-    holdSource = source;
-    holdTouchId = touchId;
-
-    holdTimer = setTimeout(() => {
-
-        if (!isHolding) return;
-
-        holdTriggered = true;
-
-        if (isPaused) {
-
-            // เตรียมเล่นต่อ
-            // รอจนปล่อยนิ้ว
-
-        } else {
-
-            // หยุดเวลาทันที
-            pauseTimer();
-
-        }
-
-    }, HOLD_DURATION);
 }
 
-/* =========================
-   ปล่อยกด
-========================= */
-
-function endHold(source, touchId = null, cancelled = false) {
-
-    if (!isHolding) return;
-
-    if (source !== holdSource) return;
-
-    if (
-        source === "touch" &&
-        touchId !== null &&
-        holdTouchId !== touchId
-    ) {
+/* 👆 แตะสั้น = รีเซ็ต (ถ้าเพิ่งกดค้างจะไม่รีเซ็ต) */
+tapArea.onclick = () => {
+    if (longPressDone) {
+        longPressDone = false;
         return;
     }
+    if (!audioUnlocked) unlockAudio();
 
-    clearTimeout(holdTimer);
+    stack = 0;
+    updateStack();
+    startTimer();
+};
 
-    isHolding = false;
+/* ✅ มือถือ: กด = เขียว, กดค้าง 2 วิ = สลับ หยุด/เล่นต่อ */
+tapArea.addEventListener("touchstart", () => {
+    timerDisplay.classList.add("active-touch");
+    longPressDone = false;
 
-    holdSource = null;
-    holdTouchId = null;
+    clearTimeout(holdTimeout);
+    holdTimeout = setTimeout(() => {
+        longPressDone = true;
+        toggleHold();
+        if (navigator.vibrate) navigator.vibrate(50);
+    }, HOLD_MS);
+}, { passive: true });
 
-    if (cancelled) return;
+tapArea.addEventListener("touchend", (e) => {
+    clearTimeout(holdTimeout);
+    timerDisplay.classList.remove("active-touch");
 
-    if (holdTriggered) {
+    if (!audioUnlocked) unlockAudio();
 
-        if (isPaused) {
-            resumeTimer();
-        }
-
-    } else {
-
-        // แตะสั้น = รีเซ็ต
-
-        stack = 0;
-        updateStack();
-
-        isPaused = false;
-
-        timerDisplay.classList.remove(
-            "paused",
-            "danger",
-            "flash"
-        );
-
-        startTimer();
+    if (longPressDone) {
+        e.preventDefault();   // กัน click รีเซ็ตเวลาหลังปล่อยนิ้ว
+        longPressDone = false;
     }
-}
-
-/* =========================
-   MOBILE TOUCH EVENTS
-========================= */
-
-tapArea.addEventListener("touchstart", function(e) {
-
-    e.preventDefault();
-
-    if (e.touches.length > 1) return;
-
-    const touch = e.changedTouches[0];
-
-    beginHold("touch", touch.identifier);
-
 }, { passive: false });
 
-window.addEventListener("touchend", function(e) {
-
-    if (!isHolding || holdSource !== "touch") return;
-
-    for (let i = 0; i < e.changedTouches.length; i++) {
-
-        const touch = e.changedTouches[i];
-
-        if (touch.identifier === holdTouchId) {
-
-            endHold("touch", touch.identifier, false);
-
-            break;
-        }
-    }
-
-}, { passive: false });
-
-window.addEventListener("touchcancel", function(e) {
-
-    if (!isHolding || holdSource !== "touch") return;
-
-    for (let i = 0; i < e.changedTouches.length; i++) {
-
-        const touch = e.changedTouches[i];
-
-        if (touch.identifier === holdTouchId) {
-
-            endHold("touch", touch.identifier, true);
-
-            break;
-        }
-    }
-
-}, { passive: false });
-
-/* =========================
-   COMPUTER MOUSE EVENTS
-========================= */
-
-tapArea.addEventListener("mousedown", function(e) {
-
-    if (e.button !== 0) return;
-
-    e.preventDefault();
-
-    beginHold("mouse");
-
+tapArea.addEventListener("touchcancel", () => {
+    clearTimeout(holdTimeout);
+    timerDisplay.classList.remove("active-touch");
 });
 
-window.addEventListener("mouseup", function(e) {
-
-    if (holdSource !== "mouse") return;
-
-    if (e.button !== 0) return;
-
-    endHold("mouse");
-
-});
-
-/* =========================
-   ป้องกันปัญหาหน้าต่างเสียโฟกัส
-========================= */
-
-window.addEventListener("blur", function() {
-
-    if (!isHolding) return;
-
-    clearTimeout(holdTimer);
-
-    isHolding = false;
-
-    holdSource = null;
-    holdTouchId = null;
-
-});
-
-/* ป้องกันเมนูคลิกขวา */
-tapArea.addEventListener("contextmenu", function(e) {
-    e.preventDefault();
-});
-
-/* =========================
-   เริ่มต้น
-========================= */
+/* กันเมนู long-press ของ iOS */
+tapArea.addEventListener("contextmenu", (e) => e.preventDefault());
 
 startTimer();
-
 </script>
 
 </body>
