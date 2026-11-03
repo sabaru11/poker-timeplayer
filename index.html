@@ -12,7 +12,7 @@
 
 <link rel="apple-touch-icon" href="/poker-timeplayer/icon.png">
 
-<title>Player playtime Fix</title>
+<title>Player playtime</title>
 
 <style>
 body {
@@ -70,6 +70,17 @@ body {
     color: rgb(0, 255, 13);
 }
 
+/* กดค้างครบเวลาแล้ว: ให้แสดงสีตามสถานะจริง ไม่เป็นสีเขียว */
+.active-touch.done {
+    color: #fff;
+}
+.active-touch.done.paused {
+    color: #ffd400;
+}
+.active-touch.done.danger {
+    color: red;
+}
+
 #stack {
     font-size: 30px;
     color: #00ffcc;
@@ -120,7 +131,7 @@ let endTime = 0;
 let startTime = 0;
 let lastWholeSecond = null;
 
-/* ⏸ หยุดเวลา */
+/* ⏸ หยุดเวลา (หน่วยมิลลิวินาที: 1000 = 1 วินาที) */
 const HOLD_MS = 1000;
 let isPaused = false;
 let pausedRemaining = 0;
@@ -309,25 +320,27 @@ function toggleHold() {
     }
 }
 
-/* 👆 จัดการการกด: แตะสั้น = รีเซ็ต, กดค้าง 2 วิ = หยุด/เล่นต่อ */
+/* 👆 จัดการการกด: แตะสั้น = รีเซ็ต, กดค้าง = หยุด/เล่นต่อ */
 function handleDown() {
     timerDisplay.classList.add("active-touch");
+    timerDisplay.classList.remove("done");
     longPressDone = false;
 
     clearTimeout(holdTimeout);
     holdTimeout = setTimeout(() => {
         longPressDone = true;
         toggleHold();
+        timerDisplay.classList.add("done");   // ครบเวลา → เปลี่ยนเป็นสีตามสถานะ
     }, HOLD_MS);
 }
 
 function handleUp() {
     clearTimeout(holdTimeout);
-    timerDisplay.classList.remove("active-touch");
+    timerDisplay.classList.remove("active-touch", "done");
 
     if (!audioUnlocked) unlockAudio();
 
-    // ถ้าไม่ได้กดค้างจนครบ 2 วิ ถือว่าเป็นการแตะสั้น → รีเซ็ต
+    // ถ้าไม่ได้กดค้างจนครบเวลา ถือว่าเป็นการแตะสั้น → รีเซ็ต
     if (!longPressDone) {
         stack = 0;
         updateStack();
@@ -338,7 +351,7 @@ function handleUp() {
 
 function handleCancel() {
     clearTimeout(holdTimeout);
-    timerDisplay.classList.remove("active-touch");
+    timerDisplay.classList.remove("active-touch", "done");
     longPressDone = false;
 }
 
