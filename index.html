@@ -22,7 +22,7 @@ body {
     color: #fff;
     margin: 0;
     overflow: hidden;
-    touch-action: manipulation;
+    touch-action: none;
 }
 
 .timer-row {
@@ -89,7 +89,7 @@ body {
     color: inherit;
 }
 
-/* สีเหลืองเมื่อหยุดเวลา */
+/* สีเหลืองเมื่อหยุด */
 .paused {
     color: #ffcc00 !important;
 }
@@ -109,7 +109,7 @@ body {
 
 let maxTime = 25;
 let stack = 0;
-let rafId;
+let rafId = null;
 let endTime = 0;
 let startTime = 0;
 let lastWholeSecond = null;
@@ -120,6 +120,7 @@ let isHolding = false;
 let holdTimer = null;
 let holdTriggered = false;
 let pausedRemaining = 0;
+let holdPointerId = null;
 
 const HOLD_DURATION = 300;
 
@@ -169,7 +170,7 @@ function playSharp() {
     osc.stop(audioCtx.currentTime + 0.05);
 }
 
-/* เสียงตอนหมดเวลา */
+/* เสียงหมดเวลา */
 function playEnd() {
     if (!audioUnlocked) return;
 
@@ -243,6 +244,8 @@ function tick() {
         stack++;
         updateStack();
 
+        rafId = null;
+
         setTimeout(() => {
             startTimer();
         }, 300);
@@ -303,9 +306,13 @@ function pauseTimer() {
 
     isPaused = true;
 
-    pausedRemaining = Math.max(0, endTime - Date.now());
+    pausedRemaining = Math.max(
+        0,
+        endTime - Date.now()
+    );
 
     cancelAnimationFrame(rafId);
+    rafId = null;
 
     timerDisplay.classList.remove(
         "danger",
@@ -350,9 +357,7 @@ function holdStart(e) {
         return;
     }
 
-    if (e.cancelable) {
-        e.preventDefault();
-    }
+    e.preventDefault();
 
     if (!audioUnlocked) {
         unlockAudio();
@@ -362,21 +367,16 @@ function holdStart(e) {
 
     isHolding = true;
     holdTriggered = false;
-
-    try {
-        tapArea.setPointerCapture(e.pointerId);
-    } catch (err) {}
-
-    timerDisplay.classList.add("active-touch");
+    holdPointerId = e.pointerId;
 
     holdTimer = setTimeout(() => {
 
         holdTriggered = true;
 
         if (isPaused) {
-            // เตรียมเล่นเวลาต่อ ไม่เปลี่ยนสีเหลือง
+            // เตรียมเล่นต่อเมื่อปล่อยนิ้ว
         } else {
-            // หยุดเวลา
+            // หยุดเวลาทันที
             pauseTimer();
         }
 
@@ -384,15 +384,23 @@ function holdStart(e) {
 }
 
 /* ปล่อยนิ้ว */
-function holdEnd(cancelled = false) {
+function holdEnd(e, cancelled = false) {
 
     if (!isHolding) return;
 
+    if (
+        e &&
+        holdPointerId !== null &&
+        e.pointerId !== undefined &&
+        e.pointerId !== holdPointerId
+    ) {
+        return;
+    }
+
     isHolding = false;
+    holdPointerId = null;
 
     clearTimeout(holdTimer);
-
-    timerDisplay.classList.remove("active-touch");
 
     if (cancelled) return;
 
@@ -420,20 +428,26 @@ function holdEnd(cancelled = false) {
     }
 }
 
-/* รองรับมือถือและคอมพิวเตอร์ */
+/* Event สำหรับมือถือและคอมพิวเตอร์ */
 tapArea.addEventListener("pointerdown", holdStart);
 
-tapArea.addEventListener("pointerup", () => {
-    holdEnd(false);
+window.addEventListener("pointerup", (e) => {
+    holdEnd(e);
 });
 
-tapArea.addEventListener("pointercancel", () => {
-    holdEnd(true);
+window.addEventListener("pointercancel", (e) => {
+    holdEnd(e, true);
 });
 
 /* ป้องกันสถานะค้างเมื่อหน้าต่างเสียโฟกัส */
 window.addEventListener("blur", () => {
-    holdEnd(true);
+
+    if (isHolding) {
+        clearTimeout(holdTimer);
+        isHolding = false;
+        holdPointerId = null;
+    }
+
 });
 
 /* ป้องกันเมนูคลิกขวา */
